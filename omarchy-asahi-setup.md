@@ -83,6 +83,11 @@ Screen share en Wayland necesita `xdg-desktop-portal` (+ backend que capture en 
 - Env para los backends: `autostart.conf` exporta el entorno gráfico **completo** lo antes posible con `exec-once = dbus-update-activation-environment --systemd --all` (PRIMER exec-once), porque las apps GTK lanzadas vía systemd fallan con "cannot open display" si arrancan antes.
 - Verificar: `busctl --user introspect org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop | grep ScreenCast`. Backend activo: `xdg-desktop-portal-hyprland`; **KDE y GTK enmascarados**.
 
+## SSH desde kitty: `ssh` = `kitten ssh` (terminfo xterm-kitty) — 2026-05-31
+- kitty exporta `TERM=xterm-kitty`; al hacer `ssh` **plano** a un servidor que no tiene ese terminfo (p.ej. Ubuntu), `clear`/`vim`/`htop`/`tput` fallan con `'xterm-kitty': unknown terminal type`.
+- Fix en `~/.bashrc`: `command -v kitten >/dev/null && alias ssh='kitten ssh'`. `kitten ssh` copia el terminfo de kitty al remoto (en su `~/.terminfo`, **sin root**) en la 1ª conexión, así `xterm-kitty` se reconoce.
+- Solo afecta shells **interactivos** (no scripts); `scp`/`rsync` quedan igual. Saltar el alias puntualmente: `\ssh …` o `command ssh …`. Alternativas: `apt install kitty-terminfo` en el server, o `TERM=xterm-256color ssh …`.
+
 ## Lock de sesión (hyprlock) — distinto del greeter de plasma-login
 - Locker: **hyprlock** (`~/.config/hypr/hyprlock.conf`) que hace `source` de `~/.config/omarchy/current/theme/hyprlock.conf` → los `$color/$inner_color/$outer_color/$font_color/$check_color` y el fondo cambian **con el tema** (los reescribe `omarchy-theme-set`).
 - **Disparadores**: tecla **`SUPER+CTRL+L`** (`omarchy-system-lock`, default de Omarchy) y **hypridle** (`lock_cmd` por timeout de inactividad + `before_sleep_cmd = loginctl lock-session` antes de suspender).
