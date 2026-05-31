@@ -1,0 +1,3 @@
+#!/bin/bash
+# Aplica accent + color de carpetas del tema Omarchy a las apps Qt/KDE (Dolphin).
+exec "$HOME/.local/bin/omarchy-theme-set-kde"

@@ -1,0 +1,4 @@
+#!/bin/bash
+# Hook Omarchy: al cambiar de tema, sincroniza el greeter de plasmalogin
+# (fondo + esquema de color). Se ejecuta vía `omarchy-hook theme-set`.
+omarchy-greeter-sync >/dev/null 2>&1 || true

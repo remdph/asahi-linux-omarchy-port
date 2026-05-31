@@ -1,0 +1,34 @@
+diff --git a/src/column.cpp b/src/column.cpp
+index b3c46b0..a6fa338 100644
+--- a/src/column.cpp
++++ b/src/column.cpp
+@@ -115,9 +115,12 @@ void Column::add_active_window(PHLWINDOW window)
+ void Column::remove_window(PHLWINDOW window)
+ {
+     reorder = Reorder::Auto;
++    if (!active) {
++        active = windows.first();
++    }
+     for (auto win = windows.first(); win != nullptr; win = win->next()) {
+         if (win->data()->is_window(window)) {
+-            if (active->data()->is_window(window)) {
++            if (active != nullptr && active->data()->is_window(window)) {
+                 // Make next window active (like PaperWM)
+                 // If it is the last, make the previous one active.
+                 // If it is the only window. active will point to nullptr,
+diff --git a/src/scroller.cpp b/src/scroller.cpp
+index 6a9f511..c162b30 100644
+--- a/src/scroller.cpp
++++ b/src/scroller.cpp
+@@ -367,8 +367,10 @@ void ScrollerLayout::onWindowRemovedTiling(PHLWINDOW window)
+         // It was the last one, remove the row
+         for (auto row = rows.first(); row != nullptr; row = row->next()) {
+             if (row->data() == s) {
++                // erase() borra el ListNode (delete it), así que 'row' queda colgando:
++                // usar 'row->data()' después sería use-after-free. 's' ya es ese puntero.
+                 rows.erase(row);
+-                delete row->data();
++                delete s;
+                 break;
+             }
+         }

@@ -1,0 +1,58 @@
+#!/bin/bash
+# omarchy-theme-set-kde — lleva el ACCENT y el COLOR DE CARPETAS del tema Omarchy a las
+# apps Qt/KDE (Dolphin) y al tema de iconos. Pensado para llamarse desde omarchy-theme-set,
+# así se actualiza solo al cambiar de tema.
+#   - accent: lee colors.toml -> escribe en ~/.config/kdeglobals (no necesita root)
+#   - carpetas: elige el color Papirus más cercano al accent -> papirus-folders (necesita root)
+set -u
+
+THEME_DIR="$HOME/.config/omarchy/current/theme"
+COLORS="$THEME_DIR/colors.toml"
+KDEGLOBALS="$HOME/.config/kdeglobals"
+[ -f "$COLORS" ] || exit 0
+
+# --- accent del tema (hex -> R,G,B) ---
+hex=$(grep -E '^\s*accent\s*=' "$COLORS" | head -1 | grep -oiE '#[0-9a-f]{6}')
+[ -n "$hex" ] || hex=$(grep -E '^\s*selection_background' "$COLORS" | head -1 | grep -oiE '#[0-9a-f]{6}')
+[ -n "$hex" ] || exit 0
+hex=${hex#\#}
+R=$((16#${hex:0:2})); G=$((16#${hex:2:2})); B=$((16#${hex:4:2}))
+RGB="$R,$G,$B"
+
+# --- escribir accent en kdeglobals (Dolphin/KF6 lo lee directo; Kvantum no está instalado) ---
+kw() { kwriteconfig6 --file "$KDEGLOBALS" --group "$1" --key "$2" "$3" 2>/dev/null; }
+kw General AccentColor "$RGB"
+for grp in "Colors:Selection" "Colors:View" "Colors:Window" "Colors:Button" "Colors:Header" "Colors:Tooltip" "Colors:Complementary"; do
+    kw "$grp" DecorationFocus "$RGB"
+    kw "$grp" DecorationHover "$RGB"
+done
+kw "Colors:Selection" BackgroundNormal "$RGB"
+kw Icons Theme "Papirus-Dark"
+
+# --- color de carpeta Papirus más cercano al accent (distancia RGB) ---
+# mapa color->hex (cuerpo) extraído de Papirus-Dark/64x64/places/folder-*.svg
+PAL="red:bf4b4b pink:ec407a violet:5d399b magenta:b259b8 blue:4877b1 darkcyan:35818a cyan:0096aa teal:12806a green:60924b yellow:e19d00 orange:dd772f paleorange:c89e6b deeporange:e95420 brown:957552 palebrown:bea389 grey:727272 bluegrey:4d646f black:3f3f3f nordic:5e81ac indigo:3f51b5"
+best=""; bestd=99999999
+for pair in $PAL; do
+    name=${pair%%:*}; ph=${pair#*:}
+    pr=$((16#${ph:0:2})); pg=$((16#${ph:2:2})); pb=$((16#${ph:4:2}))
+    dr=$((R-pr)); dg=$((G-pg)); db=$((B-pb))
+    d=$((dr*dr+dg*dg+db*db))
+    [ $d -lt $bestd ] && { bestd=$d; best=$name; }
+done
+
+# --- aplicar recoloreo de carpetas (modifica /usr/share/icons/Papirus-Dark -> root) ---
+if [ -n "$best" ] && command -v papirus-folders >/dev/null 2>&1; then
+    if [ -w /usr/share/icons/Papirus-Dark/64x64/places ]; then
+        papirus-folders -C "$best" --theme Papirus-Dark -u
+    else
+        pkexec /usr/local/bin/papirus-folders -C "$best" --theme Papirus-Dark -u 2>/dev/null
+    fi
+fi
+
+# --- iconos en apps GTK también ---
+for s in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+    [ -f "$s" ] && sed -i 's/^gtk-icon-theme-name=.*/gtk-icon-theme-name=Papirus-Dark/' "$s"
+done
+
+echo "[omarchy-theme-set-kde] accent=$RGB carpetas=$best (tema: $(basename "$(readlink -f "$THEME_DIR")"))"

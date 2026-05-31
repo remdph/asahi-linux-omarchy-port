@@ -1,0 +1,3 @@
+- [Asahi + Hyprland setup](system-asahi-hyprland.md) — MacBook Pro 14" M2 Pro on Fedora Asahi 44; switched to Hyprland (KDE kept); aquamarine rebuilt against libdisplay-info 0.3
+- [Omarchy look port](omarchy-look-port.md) — DHH's Omarchy visual layer + theme engine ported onto the Asahi Hyprland; how to switch themes / roll back
+- Concise full-setup reference doc lives at `~/omarchy-asahi-setup.md` (user-facing) — every customization, file path, command, and gotcha in one place; read it first when resuming Omarchy/Hyprland work
