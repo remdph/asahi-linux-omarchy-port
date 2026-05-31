@@ -1,5 +1,5 @@
 diff --git a/src/column.cpp b/src/column.cpp
-index b3c46b0..a6fa338 100644
+index b3c46b0..002d4cd 100644
 --- a/src/column.cpp
 +++ b/src/column.cpp
 @@ -115,9 +115,12 @@ void Column::add_active_window(PHLWINDOW window)
@@ -16,11 +16,50 @@ index b3c46b0..a6fa338 100644
                  // Make next window active (like PaperWM)
                  // If it is the last, make the previous one active.
                  // If it is the only window. active will point to nullptr,
+@@ -127,8 +130,11 @@ void Column::remove_window(PHLWINDOW window)
+             }
+             if (row->get_pinned_column() == this)
+                 win->data()->pin(false);
++            // erase() libera el ListNode (delete it), así que win queda colgando:
++            // capturar el dato ANTES de erase para no caer en use-after-free.
++            auto wdata = win->data();
+             windows.erase(win);
+-            delete win->data();
++            delete wdata;
+             return;
+         }
+     }
+diff --git a/src/row.cpp b/src/row.cpp
+index a7b993c..7504b66 100644
+--- a/src/row.cpp
++++ b/src/row.cpp
+@@ -634,8 +634,9 @@ void Row::selection_get(const Row *row, List<Column *> &selection)
+                 if (col == active) {
+                     active = active != columns.last() ? active->next() : active->prev();
+                 }
++                auto cdata = col->data();
+                 columns.erase(col);
+-                delete col->data();
++                delete cdata;
+             }
+         }
+         col = next;
 diff --git a/src/scroller.cpp b/src/scroller.cpp
-index 6a9f511..c162b30 100644
+index 6a9f511..bba95c4 100644
 --- a/src/scroller.cpp
 +++ b/src/scroller.cpp
-@@ -367,8 +367,10 @@ void ScrollerLayout::onWindowRemovedTiling(PHLWINDOW window)
+@@ -224,8 +224,9 @@ public:
+         if (active == nullptr)
+             return;
+         auto act = active == trails.first() ? active->next() : active->prev();
++        auto tdata = active->data();
+         trails.erase(active);
+-        delete active->data();
++        delete tdata;
+         active = act;
+         post_trail_event();
+     }
+@@ -367,8 +368,10 @@ void ScrollerLayout::onWindowRemovedTiling(PHLWINDOW window)
          // It was the last one, remove the row
          for (auto row = rows.first(); row != nullptr; row = row->next()) {
              if (row->data() == s) {
@@ -32,3 +71,14 @@ index 6a9f511..c162b30 100644
                  break;
              }
          }
+@@ -1210,8 +1213,9 @@ void ScrollerLayout::selection_move(WORKSPACEID workspace, Direction direction)
+     while (row != nullptr) {
+         auto next = row->next();
+         if (row->data()->size() == 0) {
++            auto rdata = row->data();
+             rows.erase(row);
+-            delete row->data();
++            delete rdata;
+         } else {
+             bool overview = row->data()->is_overview();
+             if (overview)
