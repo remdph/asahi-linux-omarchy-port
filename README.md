@@ -56,7 +56,12 @@ asahi-linux-omarchy-port/
 ├── hooks/theme-set.d/
 │   ├── 20-kde-dolphin                  # theme hook -> Dolphin
 │   └── greeter                         # theme hook -> login
-├── bin/omarchy-theme-set-kde           # theme script (Dolphin)
+├── bin/
+│   ├── omarchy-theme-set-kde           # theme script (Dolphin)
+│   └── omarchy-greeter-sync            # sync login greeter wallpaper+colors with theme
+├── systemd/                            # user units: resync greeter on background-only change
+│   ├── omarchy-greeter-bg.path
+│   └── omarchy-greeter-bg.service
 ├── login-conf/                         # greeter (from /etc)
 │   ├── plasmalogin.conf
 │   ├── sysconfig-plasmalogin

@@ -1,0 +1,6 @@
+[Unit]
+Description=Resync plasmalogin greeter with current Omarchy background
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/omarchy-greeter-sync

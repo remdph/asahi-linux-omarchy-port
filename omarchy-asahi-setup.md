@@ -102,6 +102,7 @@ Ambos cambian **color + fondo** con el tema de Omarchy.
   - `kdeglobals` del greeter (`/var/lib/plasmalogin/.config/kdeglobals`) es **symlink** a `/var/lib/omarchy-greeter/kdeglobals` (backup `.omarchy-bak`).
   - Generador: `~/.local/bin/omarchy-greeter-sync` (lee `current/theme/colors.toml`, copia el fondo y genera el esquema KDE; SIN root).
   - Auto-update: hook `~/.config/omarchy/hooks/theme-set.d/greeter` (lo dispara `omarchy-hook theme-set`).
+  - **Cambiar SOLO el fondo** (menú Omarchy / `omarchy-theme-bg-next`/`-set`) NO dispara el hook theme-set, así que un **path unit de systemd-user** vuelve a sincronizar: `omarchy-greeter-bg.path` vigila el **directorio** `~/.config/omarchy/current` (PathChanged sobre el symlink no sirve: sigue al destino; sobre el dir sí detecta el `ln -nsf background`) → corre `omarchy-greeter-bg.service` → `omarchy-greeter-sync`. Habilitado (`WantedBy=default.target`).
   - **Aplica en el siguiente arranque del greeter** (logout/reboot), no en vivo. Setup root (1 vez): `/tmp/omarchy-greeter-setup.sh`.
   - Revertir greeter: borrar bloque Omarchy de `/etc/plasmalogin.conf` (o restaurar `.omarchy-bak`) y `ln -sfn` no — restaurar `kdeglobals.omarchy-bak` sobre el symlink.
 

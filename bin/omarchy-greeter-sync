@@ -1,0 +1,107 @@
+#!/bin/bash
+# omarchy-greeter-sync — sincroniza el greeter de plasmalogin con el tema Omarchy actual.
+# Copia el fondo del tema y genera un esquema de color KDE (kdeglobals) desde colors.toml.
+# Escribe en /var/lib/omarchy-greeter (propiedad del usuario), NO necesita root.
+# Lo ejecuta omarchy-theme-set al cambiar de tema. Aplica al SIGUIENTE arranque del greeter.
+
+set -euo pipefail
+
+GREETER_DIR="/var/lib/omarchy-greeter"
+THEME="$HOME/.config/omarchy/current/theme"
+COLORS="$THEME/colors.toml"
+BG_LINK="$HOME/.config/omarchy/current/background"
+
+if [ ! -d "$GREETER_DIR" ] || [ ! -w "$GREETER_DIR" ]; then
+    echo "omarchy-greeter-sync: $GREETER_DIR no existe o no es escribible — ejecuta el setup con root primero." >&2
+    exit 0   # no romper omarchy-theme-set
+fi
+[ -f "$COLORS" ] || { echo "omarchy-greeter-sync: sin $COLORS" >&2; exit 0; }
+
+# --- 1) Fondo: copiar la imagen real (resolviendo el symlink) ---
+SRC="$(readlink -f "$BG_LINK" 2>/dev/null || true)"
+if [ -n "$SRC" ] && [ -f "$SRC" ]; then
+    cp -f "$SRC" "$GREETER_DIR/background"
+    chmod 644 "$GREETER_DIR/background"
+fi
+
+# --- 2) Colores: leer hex de colors.toml ---
+val() { grep -E "^\s*$1\s*=" "$COLORS" | head -1 | sed -E 's/.*"#?([0-9a-fA-F]{6})".*/\1/'; }
+hex2rgb() { local h="${1#\#}"; printf "%d,%d,%d" "0x${h:0:2}" "0x${h:2:2}" "0x${h:4:2}"; }
+
+BG_HEX="$(val background)"; FG_HEX="$(val foreground)"; ACC_HEX="$(val accent)"
+SELFG_HEX="$(val selection_foreground)"
+[ -n "$BG_HEX" ]  || BG_HEX="1e1e2e"
+[ -n "$FG_HEX" ]  || FG_HEX="cdd6f4"
+[ -n "$ACC_HEX" ] || ACC_HEX="$(val color4)"; [ -n "$ACC_HEX" ] || ACC_HEX="89b4fa"
+[ -n "$SELFG_HEX" ] || SELFG_HEX="$BG_HEX"
+
+BG="$(hex2rgb "$BG_HEX")"
+FG="$(hex2rgb "$FG_HEX")"
+ACC="$(hex2rgb "$ACC_HEX")"
+SELFG="$(hex2rgb "$SELFG_HEX")"
+# Fondo "alterno" un poco más claro para botones/vistas
+NEG="$(hex2rgb "$(val color1)")"; [ "$NEG" = "0,0,0" ] && NEG="218,68,83"
+POS="$(hex2rgb "$(val color2)")"; [ "$POS" = "0,0,0" ] && POS="39,174,96"
+NEU="$(hex2rgb "$(val color3)")"; [ "$NEU" = "0,0,0" ] && NEU="246,116,0"
+
+# --- 3) Generar kdeglobals (esquema de color "Omarchy") ---
+colorset() {  # $1 = nombre de sección
+cat <<EOF
+[$1]
+BackgroundAlternate=$BG
+BackgroundNormal=$BG
+DecorationFocus=$ACC
+DecorationHover=$ACC
+ForegroundActive=$ACC
+ForegroundInactive=$FG
+ForegroundLink=$ACC
+ForegroundNegative=$NEG
+ForegroundNeutral=$NEU
+ForegroundNormal=$FG
+ForegroundPositive=$POS
+ForegroundVisited=$ACC
+
+EOF
+}
+
+{
+echo "# Generado por omarchy-greeter-sync — NO editar a mano"
+echo
+colorset "Colors:Button"
+colorset "Colors:View"
+colorset "Colors:Window"
+colorset "Colors:Tooltip"
+colorset "Colors:Complementary"
+colorset "Colors:Header"
+cat <<EOF
+[Colors:Selection]
+BackgroundAlternate=$ACC
+BackgroundNormal=$ACC
+DecorationFocus=$ACC
+DecorationHover=$ACC
+ForegroundActive=$SELFG
+ForegroundInactive=$SELFG
+ForegroundLink=$SELFG
+ForegroundNegative=$NEG
+ForegroundNeutral=$NEU
+ForegroundNormal=$SELFG
+ForegroundPositive=$POS
+ForegroundVisited=$SELFG
+
+[General]
+ColorScheme=Omarchy
+Name=Omarchy
+shadeSortColumn=true
+
+[WM]
+activeBackground=$BG
+activeBlend=$ACC
+activeForeground=$FG
+inactiveBackground=$BG
+inactiveBlend=$BG
+inactiveForeground=$FG
+EOF
+} > "$GREETER_DIR/kdeglobals"
+chmod 644 "$GREETER_DIR/kdeglobals"
+
+echo "omarchy-greeter-sync: greeter sincronizado (bg + colores: #$BG_HEX / #$ACC_HEX). Aplica al próximo login."

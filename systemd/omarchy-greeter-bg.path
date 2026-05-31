@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch Omarchy current/ dir to resync the login greeter on background change
+
+[Path]
+PathChanged=%h/.config/omarchy/current
+Unit=omarchy-greeter-bg.service
+
+[Install]
+WantedBy=default.target
