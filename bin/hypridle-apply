@@ -1,0 +1,75 @@
+#!/bin/bash
+# Genera ~/.config/hypr/hypridle.conf con los tiempos de inactividad y reinicia
+# hypridle. Tiempos base (en batería): dim 110s, pantalla 120s, lock 120s,
+# suspender 600s. Enchufado a AC -> x5.
+# DEBOUNCE: solo regenera/reinicia si el estado AC<->batería CAMBIÓ (los eventos
+# de batería saltan a menudo; reiniciar hypridle reinicia el contador de idle).
+set -u
+
+CONF="$HOME/.config/hypr/hypridle.conf"
+STATE="$HOME/.cache/hypridle-power.state"
+
+# ¿Hay corriente (Mains) conectada?
+on_ac=0
+for ps in /sys/class/power_supply/*; do
+  [ "$(cat "$ps/type" 2>/dev/null)" = "Mains" ] || continue
+  [ "$(cat "$ps/online" 2>/dev/null)" = "1" ] && { on_ac=1; break; }
+done
+[ "$on_ac" = 1 ] && state=ac || state=bat
+
+prev=$(cat "$STATE" 2>/dev/null || echo "")
+# Sin cambios y hypridle vivo -> no tocar nada (no reiniciar el contador de idle)
+if [ "$state" = "$prev" ] && pgrep -x hypridle >/dev/null 2>&1; then
+  exit 0
+fi
+
+[ "$state" = ac ] && m=5 || m=1
+DIM=$((110 * m)); DPMS=$((120 * m)); LOCK=$((120 * m)); SUSPEND=$((600 * m))
+
+cat > "$CONF" <<EOF
+# GENERADO por hypridle-apply — NO editar a mano (se sobrescribe al cambiar AC/batería).
+# Base en batería: dim ${DIM}s, pantalla ${DPMS}s, lock ${LOCK}s, suspender ${SUSPEND}s.
+# Estado actual: $state (x$m). Tiempos base x1: dim 110, pantalla 120, lock 120, suspend 600.
+# NOTA: mientras corra Claude Code (proceso 'claude') NO se suspende (ver listener suspend).
+general {
+    lock_cmd = pidof hyprlock || hyprlock       # evita instancias duplicadas
+    before_sleep_cmd = loginctl lock-session     # bloquea antes de suspender
+    after_sleep_cmd = hyprctl dispatch dpms on   # enciende pantalla al despertar
+}
+
+# ~Aviso: atenuar brillo justo antes de apagar la pantalla
+listener {
+    timeout = $DIM
+    on-timeout = brightnessctl -s set 10%
+    on-resume = brightnessctl -r
+}
+
+# Apagar la pantalla (display sleep)
+listener {
+    timeout = $DPMS
+    on-timeout = hyprctl dispatch dpms off
+    on-resume = hyprctl dispatch dpms on
+}
+
+# Bloquear (pedir contraseña)
+listener {
+    timeout = $LOCK
+    on-timeout = loginctl lock-session
+}
+
+# Suspender el equipo — pero NO si Claude Code está corriendo (proceso 'claude').
+# Si pgrep encuentra a claude, el comando se corta y no se suspende. Sin polling:
+# aprovecha el temporizador de hypridle, que reevalúa en cada ciclo de inactividad.
+listener {
+    timeout = $SUSPEND
+    on-timeout = pgrep -x claude >/dev/null || systemctl suspend
+}
+EOF
+
+mkdir -p "$(dirname "$STATE")"
+echo "$state" > "$STATE"
+
+# (re)arrancar hypridle con la nueva config, desacoplado del proceso padre
+pkill -x hypridle 2>/dev/null
+sleep 0.3
+setsid hypridle >/dev/null 2>&1 &
