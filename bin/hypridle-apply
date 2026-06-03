@@ -30,7 +30,8 @@ cat > "$CONF" <<EOF
 # GENERADO por hypridle-apply — NO editar a mano (se sobrescribe al cambiar AC/batería).
 # Base en batería: dim ${DIM}s, pantalla ${DPMS}s, lock ${LOCK}s, suspender ${SUSPEND}s.
 # Estado actual: $state (x$m). Tiempos base x1: dim 110, pantalla 120, lock 120, suspend 600.
-# NOTA: mientras corra Claude Code (proceso 'claude') NO se suspende (ver listener suspend).
+# NOTA: mientras corra Claude Code (proceso 'claude') SOLO se atenúa el brillo;
+# NO se apaga la pantalla, NO se bloquea y NO se suspende (ver guards pgrep -x claude).
 general {
     lock_cmd = pidof hyprlock || hyprlock       # evita instancias duplicadas
     before_sleep_cmd = loginctl lock-session     # bloquea antes de suspender
@@ -44,17 +45,17 @@ listener {
     on-resume = brightnessctl -r
 }
 
-# Apagar la pantalla (display sleep)
+# Apagar la pantalla (display sleep) — NO si Claude Code está corriendo.
 listener {
     timeout = $DPMS
-    on-timeout = hyprctl dispatch dpms off
+    on-timeout = pgrep -x claude >/dev/null || hyprctl dispatch dpms off
     on-resume = hyprctl dispatch dpms on
 }
 
-# Bloquear (pedir contraseña)
+# Bloquear (pedir contraseña) — NO si Claude Code está corriendo.
 listener {
     timeout = $LOCK
-    on-timeout = loginctl lock-session
+    on-timeout = pgrep -x claude >/dev/null || loginctl lock-session
 }
 
 # Suspender el equipo — pero NO si Claude Code está corriendo (proceso 'claude').
