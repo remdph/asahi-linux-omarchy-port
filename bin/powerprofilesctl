@@ -1,0 +1,48 @@
+#!/bin/bash
+# powerprofilesctl — shim mínimo sobre el D-Bus net.hadess.PowerProfiles que ya
+# expone tuned-ppd. En Asahi/Fedora el gestor es tuned-ppd (NO power-profiles-
+# daemon), así que el CLI 'powerprofilesctl' no se instala — pero la interfaz
+# D-Bus estándar sí existe. Este shim la suple para que el menú de Omarchy
+# (omarchy-menu / omarchy-powerprofiles-list, que llaman a list/get/set)
+# funcione sin modificarlos.
+set -euo pipefail
+
+DEST=net.hadess.PowerProfiles
+OBJ=/net/hadess/PowerProfiles
+IFACE=net.hadess.PowerProfiles
+
+_get() {
+  gdbus call --system --dest "$DEST" --object-path "$OBJ" \
+    --method org.freedesktop.DBus.Properties.Get "$IFACE" "$1"
+}
+
+_active() {
+  _get ActiveProfile | sed -E "s/^\(<'(.*)'>,\)$/\1/"
+}
+
+case "${1:-list}" in
+  get)
+    _active
+    ;;
+  list)
+    cur=$(_active)
+    # Profiles -> nombres; marca el activo con '*' (formato que parsea
+    # omarchy-powerprofiles-list: líneas tipo "  nombre:" / "* nombre:").
+    _get Profiles | grep -oE "'Profile': <'[^']*'>" | sed -E "s/.*<'([^']*)'>/\1/" |
+      while read -r p; do
+        [[ "$p" == "$cur" ]] && echo "* $p:" || echo "  $p:"
+      done
+    ;;
+  set)
+    [[ -n "${2:-}" ]] || { echo "uso: powerprofilesctl set <perfil>" >&2; exit 1; }
+    gdbus call --system --dest "$DEST" --object-path "$OBJ" \
+      --method org.freedesktop.DBus.Properties.Set "$IFACE" ActiveProfile "<'$2'>" >/dev/null
+    ;;
+  version|--version)
+    echo "powerprofilesctl-shim (tuned-ppd D-Bus) 1.0"
+    ;;
+  *)
+    echo "powerprofilesctl shim: subcomando no soportado: $1 (usa: list|get|set)" >&2
+    exit 1
+    ;;
+esac
