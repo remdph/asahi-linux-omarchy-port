@@ -1,0 +1,72 @@
+#!/bin/bash
+# omarchy-monitor-mode — elegir el modo del monitor EXTERNO: clonar (espejo),
+# extender izquierda/derecha, solo externo o solo laptop. Aplica en caliente
+# (hyprctl reload) y persiste regenerando ~/.config/hypr/monitors.conf.
+#   uso:  omarchy-monitor-mode               -> muestra el menú (walker)
+#         omarchy-monitor-mode "<modo>"      -> aplica ese modo directo (para scripting)
+set -u
+
+INTERNAL="eDP-1"
+CONF="$HOME/.config/hypr/monitors.conf"
+
+# Monitor externo = cualquiera distinto del interno (incluye deshabilitados)
+EXT=$(hyprctl monitors all -j 2>/dev/null | jq -r --arg i "$INTERNAL" '.[] | select(.name != $i) | .name' | head -1)
+if [ -z "$EXT" ]; then
+    notify-send -u normal "󰍹 Pantallas" "No hay monitor externo conectado."
+    exit 0
+fi
+
+OPTIONS="󰍹  Clonar (espejo)\n  Extender a la derecha\n  Extender a la izquierda\n󰍹  Solo externo\n  Solo laptop"
+
+if [ $# -ge 1 ]; then
+    CHOICE="$1"
+else
+    CHOICE=$(echo -e "$OPTIONS" | omarchy-launch-walker --dmenu --width 320 --minheight 1 --maxheight 360 -p "Modo de pantallas…" 2>/dev/null)
+fi
+[ -z "${CHOICE:-}" ] && exit 0
+
+HDR="# Generado por omarchy-monitor-mode (interno=$INTERNAL externo=$EXT)"
+
+case "$CHOICE" in
+*Clonar*|*espejo*|*mirror*)
+    cat > "$CONF" <<EOF
+$HDR — modo: CLONAR (espejo)
+monitor = $INTERNAL, 3024x1890@120, 0x0, 2.0
+monitor = $EXT, preferred, auto, 1.0, mirror, $INTERNAL
+EOF
+    ;;
+*derecha*|*right*)
+    cat > "$CONF" <<EOF
+$HDR — modo: EXTENDER DERECHA
+monitor = $INTERNAL, 3024x1890@120, 0x0, 2.0
+monitor = $EXT, preferred, auto-right, 1.5
+EOF
+    ;;
+*izquierda*|*left*)
+    cat > "$CONF" <<EOF
+$HDR — modo: EXTENDER IZQUIERDA
+monitor = $INTERNAL, 3024x1890@120, 0x0, 2.0
+monitor = $EXT, preferred, auto-left, 1.5
+EOF
+    ;;
+*"Solo externo"*|*"only external"*)
+    cat > "$CONF" <<EOF
+$HDR — modo: SOLO EXTERNO  (¡reconecta la TV o usa 'Solo laptop' para volver!)
+monitor = $INTERNAL, disable
+monitor = $EXT, preferred, 0x0, 1.5
+EOF
+    ;;
+*"Solo laptop"*|*laptop*)
+    cat > "$CONF" <<EOF
+$HDR — modo: SOLO LAPTOP
+monitor = $EXT, disable
+monitor = $INTERNAL, 3024x1890@120, 0x0, 2.0
+EOF
+    ;;
+*)
+    exit 0
+    ;;
+esac
+
+hyprctl reload >/dev/null 2>&1
+notify-send -u low "󰍹 Pantallas" "Modo aplicado: ${CHOICE#*  }"

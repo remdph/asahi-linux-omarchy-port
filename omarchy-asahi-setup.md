@@ -85,6 +85,13 @@ Screen share en Wayland necesita `xdg-desktop-portal` (+ backend que capture en 
 - Env para los backends: `autostart.conf` exporta el entorno gráfico **completo** lo antes posible con `exec-once = dbus-update-activation-environment --systemd --all` (PRIMER exec-once), porque las apps GTK lanzadas vía systemd fallan con "cannot open display" si arrancan antes.
 - Verificar: `busctl --user introspect org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop | grep ScreenCast`. Backend activo: `xdg-desktop-portal-hyprland`; **KDE y GTK enmascarados**.
 
+## Monitores externos / selector de modos de pantalla — 2026-06-01
+- **Detección**: Hyprland auto-activa el externo (p. ej. TV LG por HDMI = `HDMI-A-1`). Config base en `~/.config/hypr/monitors.conf` (interno `eDP-1` 3024x1890@120 escala 2.0).
+- **Selector en el menú**: **Super+Alt+Space → Setup → Monitor Mode** → script **`~/.local/bin/omarchy-monitor-mode`** (usa el mismo walker `--dmenu` de Omarchy). Modos: **Clonar (espejo)**, **Extender derecha/izquierda** (escala 1.5, `auto-right`/`auto-left`), **Solo externo**, **Solo laptop**. Detecta el externo dinámicamente (no hardcodea el nombre), aplica y **persiste** regenerando `monitors.conf` + `hyprctl reload`.
+  - Integrado editando `omarchy-menu` (entrada `Monitor Mode` + case `omarchy-monitor-mode`). **NO es a prueba de updates de Omarchy** (backup `omarchy-menu.bak-monitor-mode`; el script sí es propio y no se toca).
+  - ⚠️ "Solo externo" deja `eDP-1, disable`: si desconectas el externo te quedas sin pantalla → reconéctalo o elige "Solo laptop".
+- **Espejo con TV 16:9 vs laptop 16:10 → letterbox con basura parpadeando**: las franjas estáticas no se repintaban (damage tracking fino `2`). Fix en `autostart.conf`: **`debug { damage_tracking = 1 }`** (repinta el monitor completo ante cualquier cambio → franjas negras estables). VRR ya estaba en 0; no era eso.
+
 ## SSH desde kitty: `ssh` = `kitten ssh` (terminfo xterm-kitty) — 2026-05-31
 - kitty exporta `TERM=xterm-kitty`; al hacer `ssh` **plano** a un servidor que no tiene ese terminfo (p.ej. Ubuntu), `clear`/`vim`/`htop`/`tput` fallan con `'xterm-kitty': unknown terminal type`.
 - Fix en `~/.bashrc`: `command -v kitten >/dev/null && alias ssh='kitten ssh'`. `kitten ssh` copia el terminfo de kitty al remoto (en su `~/.terminfo`, **sin root**) en la 1ª conexión, así `xterm-kitty` se reconoce.
