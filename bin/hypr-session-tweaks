@@ -1,0 +1,32 @@
+#!/bin/bash
+# hypr-session-tweaks — version-dependent tweaks for the RUNNING Hyprland.
+# Called from autostart.conf (exec-once = hypr-session-tweaks) so a SINGLE shared config works
+# for every session. Hyprland plugins are locked to the EXACT version: loading the wrong .so
+# crashes the compositor — so the correct one is chosen here at runtime.
+#
+#   • 0.51 (distro RPM, /usr/bin/Hyprland)
+#       -> hyprscroller.so (cpiber fork built against 0.51).
+#   • 0.52..0.54 (local build, ~/.local/hyprland-0.52)
+#       -> hyprscroller-052.so + render:non_shader_cm=1 (fixes the green Chromium fullscreen).
+#   • 0.55+ (local build, ~/.local/hyprland-0.55, isolated stack)
+#       -> no scroller plugin yet (the cpiber fork doesn't build against 0.55; the official
+#          hyprscrolling is pending). Force layout=dwindle so the autostart `layout=scroller`
+#          doesn't dangle, and apply render:non_shader_cm=1.
+set -u
+SO_DIR="$HOME/.local/share/hyprland"
+
+ver=$(hyprctl version -j 2>/dev/null | jq -r '.version // "0.0.0"')
+major=$(printf '%s' "$ver" | cut -d. -f1); minor=$(printf '%s' "$ver" | cut -d. -f2)
+[ -z "$major" ] && major=0; [ -z "$minor" ] && minor=0
+v=$((major*100 + minor))   # 0.51->51, 0.52->52, 0.55->55, 1.0->100
+
+if [ "$v" -ge 55 ]; then
+    hyprctl keyword render:non_shader_cm 1 >/dev/null 2>&1
+    hyprctl keyword general:layout dwindle >/dev/null 2>&1
+elif [ "$v" -ge 52 ]; then
+    hyprctl keyword render:non_shader_cm 1 >/dev/null 2>&1
+    so="$SO_DIR/hyprscroller-052.so"; [ -f "$so" ] || so="$SO_DIR/hyprscroller.so"
+    hyprctl plugin load "$so" >/dev/null 2>&1
+else
+    hyprctl plugin load "$SO_DIR/hyprscroller.so" >/dev/null 2>&1
+fi

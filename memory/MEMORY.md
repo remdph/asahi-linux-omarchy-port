@@ -1,3 +1,4 @@
 - [Asahi + Hyprland setup](system-asahi-hyprland.md) — MacBook Pro 14" M2 Pro on Fedora Asahi 44; switched to Hyprland (KDE kept); aquamarine rebuilt against libdisplay-info 0.3
 - [Omarchy look port](omarchy-look-port.md) — DHH's Omarchy visual layer + theme engine ported onto the Asahi Hyprland; how to switch themes / roll back
 - Concise full-setup reference doc lives at `~/omarchy-asahi-setup.md` (user-facing) — every customization, file path, command, and gotcha in one place; read it first when resuming Omarchy/Hyprland work
+- [Hyprland multi-version builds](hyprland-multiversion-builds.md) — 0.51 RPM + 0.52 + 0.55.2 built from source in isolated `~/.local/hyprland-0.5x` prefixes, each a separate login session; full guide at `hyprland-from-source.md`; 0.55 scroller still pending

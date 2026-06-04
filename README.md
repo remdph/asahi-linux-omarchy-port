@@ -32,6 +32,9 @@ plugin, copy configs and hooks) in one step. For now, apply the docs/configs/scr
 
 ## Documents
 - **`omarchy-asahi-setup.md`** — COMPLETE reference of the MacBook setup (everything, incl. Apple hardware).
+- **`hyprland-from-source.md`** — build a **newer Hyprland than your COPR ships** (0.52 and the full
+  0.55.2 stack) into an **isolated prefix** + a separate login session, without breaking the system
+  install. Covers every aarch64/GCC‑16/Lua‑5.5/RPATH gotcha and the AGX green‑fullscreen fix.
 - **`hyprscroller-crashes.patch`** — patches for the 2 plugin crashes when closing windows.
 
 ## Config files (real, ready to copy)
