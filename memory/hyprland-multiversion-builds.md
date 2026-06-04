@@ -20,7 +20,13 @@ RPM untouched as rollback. Three versions coexist, chosen at the `plasma-login-m
   Uses a **dedicated converted config** `~/.config/hypr-055/` (launcher passes `--config`), NOT
   the shared `~/.config/hypr` (that errors on 0.55). Converted: windowrulev2→windowrule+match:
   (float/center need `on`), scroller:movewindow→movewindow l/r, no plugin{scroller} block,
-  static render:non_shader_cm=1. Validated with `Hyprland --verify-config` → "config ok".
+  static **render:cm_enabled=0**. Validated with `Hyprland --verify-config` → "config ok",
+  booted & verified live (0.55.2, isolated libs, no /lib64, configerrors empty).
+
+**GREEN-FULLSCREEN FIX (Chromium/Electron on AGX) — SOLVED on 0.55:** the working option is
+**`render:cm_enabled = 0`** (disable color management). `render:non_shader_cm` did NOT fix it
+(only applies with direct_scanout, which defaults to 0). On 0.51 cm_enabled=0 reportedly didn't
+help; 0.55's reworked CM pipeline is what makes disabling it effective. SDR panel loses nothing.
 
 Session wiring (shared config, one guard): `~/.local/bin/hypr-session-tweaks` (run from
 autostart.conf) branches on `hyprctl version` to load the right scroller `.so` + set

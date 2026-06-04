@@ -7,11 +7,12 @@
 #   • 0.51 (distro RPM, /usr/bin/Hyprland)
 #       -> hyprscroller.so (cpiber fork built against 0.51).
 #   • 0.52..0.54 (local build, ~/.local/hyprland-0.52)
-#       -> hyprscroller-052.so + render:non_shader_cm=1 (fixes the green Chromium fullscreen).
+#       -> hyprscroller-052.so + render:cm_enabled=0 (the tested green-fullscreen fix on AGX).
 #   • 0.55+ (local build, ~/.local/hyprland-0.55, isolated stack)
 #       -> no scroller plugin yet (the cpiber fork doesn't build against 0.55; the official
 #          hyprscrolling is pending). Force layout=dwindle so the autostart `layout=scroller`
-#          doesn't dangle, and apply render:non_shader_cm=1.
+#          doesn't dangle, and apply render:cm_enabled=0 (green fix). NOTE: non_shader_cm does
+#          NOT fix it (only applies with direct_scanout); cm_enabled=0 is what works.
 set -u
 SO_DIR="$HOME/.local/share/hyprland"
 
@@ -21,10 +22,10 @@ major=$(printf '%s' "$ver" | cut -d. -f1); minor=$(printf '%s' "$ver" | cut -d. 
 v=$((major*100 + minor))   # 0.51->51, 0.52->52, 0.55->55, 1.0->100
 
 if [ "$v" -ge 55 ]; then
-    hyprctl keyword render:non_shader_cm 1 >/dev/null 2>&1
+    hyprctl keyword render:cm_enabled 0 >/dev/null 2>&1   # green-fullscreen fix (AGX)
     hyprctl keyword general:layout dwindle >/dev/null 2>&1
 elif [ "$v" -ge 52 ]; then
-    hyprctl keyword render:non_shader_cm 1 >/dev/null 2>&1
+    hyprctl keyword render:cm_enabled 0 >/dev/null 2>&1   # green-fullscreen fix (AGX)
     so="$SO_DIR/hyprscroller-052.so"; [ -f "$so" ] || so="$SO_DIR/hyprscroller.so"
     hyprctl plugin load "$so" >/dev/null 2>&1
 else

@@ -9,7 +9,7 @@ This was done on a **MacBook Pro 14" M2 Pro**, Fedora Asahi Remix 44, where the
 
 | Target | Why | Complexity |
 |---|---|---|
-| **0.52.0** | Adds `render:non_shader_cm` → fixes the **green Chromium/Electron fullscreen** bug on the Apple **AGX** GPU (PR hyprwm/Hyprland#11900). | Easy — one binary against the system libs. |
+| **0.52.0** | First version with the reworked render color‑management options; built chasing the **green Chromium/Electron fullscreen** bug on the Apple **AGX** GPU. (The fix that actually worked is `render:cm_enabled = 0`, effective on 0.55 — see §4.) | Easy — one binary against the system libs. |
 | **0.55.2** | Latest stable; better scrolling, Lua configs, many fixes. | Hard — the whole `hypr*` + `aquamarine` + `lua` stack must be built too. |
 
 > **The golden rule: never overwrite the distro's Hyprland.** Everything below installs into
@@ -195,21 +195,31 @@ ldd ~/.local/hyprland-0.55/bin/Hyprland | grep -iE 'hypr|aquamarine'
 
 ---
 
-## 4. `render:non_shader_cm` — the green‑fullscreen fix
+## 4. The green‑fullscreen fix — `render:cm_enabled = 0`
 
-On the Apple AGX GPU, the shader‑based color‑management path renders **solid green** when a
+On the Apple AGX GPU, **Hyprland's color management** renders a **solid green** frame when a
 Chromium/Electron window goes fullscreen (Firefox is unaffected; an external monitor in *mirror*
-mode launders the buffer so it doesn't show there). 0.52+ adds an integer option (a CHOICE):
+mode launders the buffer so it doesn't show there).
 
-| value | name | effect |
-|---|---|---|
-| 0 | disable | use the **shader** CM → the green bug |
-| **1** | **always** | do CM via the **hardware CTM** whenever possible → **no green, colors correct** ← use this |
-| 2 | ondemand | non‑shader only for direct‑scanout / passthrough |
-| 3 | ignore | skip CM entirely (0.55's default) — no green, but no color management |
+> **Tested result (0.55.2, live):** the option that actually fixes it is **`render:cm_enabled = 0`**
+> (disable color management entirely). The much‑hyped `render:non_shader_cm` did **not** help —
+> with `render:direct_scanout = 0` (the default) the CTM/no‑shader path never engages, so CM still
+> runs through the shader and stays green. Don't waste time on `non_shader_cm` for this bug.
 
-We set **`render:non_shader_cm = 1`** at runtime from the version guard (see §6), so it only
-applies on 0.52+ and never errors on the 0.51 daily driver.
+```ini
+render {
+    cm_enabled = 0       # <- the fix: no color management, no green. (the operative line)
+    non_shader_cm = 0    # moot once CM is off; kept to match the tested state
+}
+```
+
+On an SDR laptop panel this loses nothing visible (no wide‑gamut/HDR correction was doing anything
+useful anyway). `cm_enabled` is unknown to 0.51, so it lives only in the 0.55 config (§7), never in
+the shared one. For reference, `non_shader_cm`'s CHOICE values are `0 disable / 1 always / 2
+ondemand / 3 ignore` — but they only matter when `cm_enabled = 1`, which we turn off.
+
+> Note: on **0.51** `cm_enabled = 0` reportedly did *not* clear the green; 0.55's reworked CM
+> pipeline is what makes disabling it effective. Another concrete reason the 0.55 build was worth it.
 
 ---
 
@@ -250,8 +260,9 @@ the *correct* plugin and applies version‑specific keywords — so a **single s
 for every session. See **[`bin/hypr-session-tweaks`](bin/hypr-session-tweaks)**. It branches on
 the running `hyprctl version`:
 - 0.51 → load `hyprscroller.so`
-- 0.52–0.54 → load `hyprscroller-052.so` + `render:non_shader_cm 1`
-- 0.55+ → `render:non_shader_cm 1` + `general:layout dwindle` (no scroller yet)
+- 0.52–0.54 → load `hyprscroller-052.so`
+- 0.55+ → `general:layout dwindle` (no scroller yet); the green fix `render:cm_enabled = 0` is set
+  statically in the 0.55 config (§7), not from the guard
 
 **c) A login‑session entry** the greeter can see. The greeter (`plasma-login-manager`) runs as
 its own user and only scans **system** dirs, so it must go in `/usr/share/wayland-sessions/`
@@ -299,7 +310,7 @@ only keeps **converted copies** of the files that break. The session launcher po
 | `windowrulev2 = float, class:^(x)$` | `windowrule = float on, match:class ^(x)$` | 0.53 windowrule overhaul: keyword unified to `windowrule`, matchers become `match:…`, and **toggles like `float`/`center` now require a value** (`on`) |
 | `bind … , scroller:movewindow, left` | `bind … , movewindow, l` | scroller plugin dispatchers don't exist without the plugin; map to dwindle's `movewindow` |
 | `general { layout = scroller }` + `plugin { scroller {…} }` | `general { layout = dwindle }` (drop the plugin block) | no scroller plugin on 0.55 yet |
-| (n/a on 0.51) | `render { non_shader_cm = 1 }` | set statically here — it's 0.52+‑only, so it can't live in the shared config (would error on 0.51) |
+| (n/a on 0.51) | `render { cm_enabled = 0 }` | the green‑fullscreen fix (tested live, §4); 0.55‑only, can't live in the shared config (errors on 0.51) |
 
 Other documented 0.52→0.55 breakers to grep your config for (none were present here): `dwindle:pseudotile`,
 `decoration:shadow:ignore_window`, `render:cm_fs_passthrough`, `misc:vfr`→`debug:vfr` (0.55);
