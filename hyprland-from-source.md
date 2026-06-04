@@ -223,21 +223,40 @@ ondemand / 3 ignore` — but they only matter when `cm_enabled = 1`, which we tu
 
 ---
 
-## 5. Scroller plugin per version
+## 5. The scroller — plugin (≤0.54) vs **native (0.55)**
 
-The PaperWM‑style layout this setup uses is the **cpiber `hyprscroller`** fork (with local
-use‑after‑free patches, see `hyprscroller-crashes.patch`):
+The PaperWM‑style scrolling layout this setup uses comes from **two different places** depending on
+the version — and on 0.55 **you need no plugin at all**:
 
-- **0.51** → `hyprscroller.so` (built against 0.51).
-- **0.52** → rebuild the same fork against the 0.52 prefix → `hyprscroller-052.so`
-  (`PKG_CONFIG_PATH` pointing at the 0.52 `hyprland.pc`).
-- **0.55** → the cpiber fork **does not compile** against 0.55 (Hyprland's internal API moved:
-  `m_lastMonitor`, `m_tags`, `CGradientValueData`, `Math::eDirection`, …). 0.55's recommended
-  scroller is the **official `hyprscrolling`** plugin (hyprwm/hyprland-plugins), which must be
-  built against the 0.55 prefix and uses **different dispatchers/config** (`layout = scrolling`,
-  `plugin:hyprscrolling:*`). *This is the one piece still pending in the 0.55 session.*
+- **0.51 / 0.52–0.54** → the **cpiber `hyprscroller`** fork (with local use‑after‑free patches, see
+  `hyprscroller-crashes.patch`), rebuilt **per version** (plugins are version‑locked):
+  - 0.51 → `hyprscroller.so` (built against 0.51).
+  - 0.52 → same fork rebuilt against the 0.52 prefix → `hyprscroller-052.so`
+    (`PKG_CONFIG_PATH` → the 0.52 `hyprland.pc`).
+- **0.55 → scrolling is BUILT INTO THE CORE.** Don't build any plugin. 0.55 rewrote the layout
+  system; the tiled algorithms are now `dwindle`, `master`, **`scrolling`**, `monocle`
+  (`src/layout/supplementary/WorkspaceAlgoMatcher.cpp`). Enable it with **`general:layout = scrolling`**.
+  - The cpiber fork does **not** compile against 0.55 anyway (internal API moved: `m_lastMonitor`,
+    `m_tags`, `CGradientValueData`, `Math::eDirection`, …) — and it's moot, since the feature is native.
+  - The old **`hyprscrolling`** *plugin* (hyprwm/hyprland-plugins) was the pre‑0.55 way; on 0.55 it's
+    superseded by the core layout. (If your distro's 0.55 "already had a scroller", that's this — native.)
+  - Config lives under a `scrolling { }` block; messages via `layoutmsg`:
 
-> Don't let the guard load a wrong‑version `.so` — it will crash the compositor.
+    ```ini
+    general { layout = scrolling }
+    scrolling {
+        column_width = 0.875
+        explicit_column_widths = 0.333, 0.5, 0.667, 0.75, 0.875, 1.0   # comma‑separated floats
+    }
+    # binds (layoutmsg vocabulary: move ±col / colresize ±conf / col / all):
+    bind = SUPER, code:21, layoutmsg, colresize +conf   # cycle column wider through the list
+    bind = SUPER, code:20, layoutmsg, colresize -conf   # narrower
+    # movefocus / movewindow (standard dispatchers) work as column focus/move.
+    ```
+
+> Don't let the guard load a wrong‑version `.so` — it will crash the compositor. And on 0.55, don't
+> set `layout = scroller` (the old plugin's name) — the native algorithm is **`scrolling`**; an
+> unknown name silently falls back to `dwindle`.
 
 ---
 
@@ -338,8 +357,11 @@ Hyprland 0.55.2 · hyprutils 0.13.1 · hyprlang 0.6.8 · hyprgraphics 0.5.1 · h
 aquamarine 0.12.0 · hyprwire 0.3.1 · lua 5.5.0 · GCC 16.1.1 · Fedora Asahi Remix 44.
 
 ## Status
-0.52 and 0.55.2 both build, install isolated, and boot as separate sessions. **Pending for
-0.55:** build the official `hyprscrolling` plugin and port the scroller binds/layout to it.
+0.52 and 0.55.2 both build, install isolated, and boot as separate sessions. **0.55.2 is fully
+working:** isolated stack, green‑fullscreen fixed (`cm_enabled=0`), launched via `start-hyprland`,
+and the scroller running on the **native `scrolling`** layout (no plugin) with column‑width cycling
+bound to `layoutmsg colresize ±conf`. No build‑from‑source work remains for the scroller — it's a
+core feature on 0.55.
 
 ---
 

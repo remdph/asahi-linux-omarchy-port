@@ -41,9 +41,15 @@ so Lua 5.5 is built static + `.pc`; `-Wl,--exclude-libs,liblua.a` hides its symb
 libinput's liblua-5.4. **pkexec must run with a live parent** (no `& disown` → "Refusing to
 render service to dead parents") — use the harness background mode.
 
-**Pending for 0.55:** build the official `hyprscrolling` plugin against the 0.55 prefix and port
-the scroller binds/layout to it (the cpiber `hyprscroller` fork does NOT compile against 0.55).
-Also pending: the "some errors" the user saw in the 0.52 session (not yet diagnosed).
+**Scroller on 0.55 = NATIVE, no plugin.** 0.55 rewrote layouts; tiled algos are dwindle/master/
+**scrolling**/monocle (WorkspaceAlgoMatcher.cpp). Enabled via `general:layout = scrolling` +
+`scrolling { column_width; explicit_column_widths = comma floats }`; binds via `layoutmsg`
+(`move ±col`, `colresize ±conf`). The cpiber `hyprscroller` fork does NOT compile against 0.55 and
+is moot. The old `hyprscrolling` *plugin* (hyprland-plugins) is superseded by the core layout.
+0.55 launched via **`start-hyprland`** (watchdog) — running the bare `Hyprland` binary shows a
+"started without start-hyprland" warning. **0.55 is now fully working.**
+
+Still pending: the "some errors" the user saw in the 0.52 session (not yet diagnosed).
 
 Full guide: `hyprland-from-source.md` in [[work-repo-asahi-omarchy]]. Scroller fork crashes &
 patches relate to [[omarchy-look-port]].
