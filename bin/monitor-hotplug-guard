@@ -1,0 +1,33 @@
+#!/bin/bash
+# monitor-hotplug-guard — escucha eventos de monitor de Hyprland (socket2) y:
+#   1) SEGURIDAD: si al desconectar un monitor el interno (eDP-1) quedó sin activar
+#      (p. ej. venías en "Solo externo"), lo reactiva → evita pantalla negra sin retorno.
+#   2) refresca waybar al conectar/desconectar para que dibuje las barras en los
+#      outputs actuales (waybar no añade barra a un monitor que aparece después).
+set -u
+INTERNAL="eDP-1"
+
+restart_waybar() { pkill -x waybar 2>/dev/null; setsid waybar >/dev/null 2>&1 & }
+
+ensure_internal() {
+    # ¿está el interno entre los monitores ACTIVOS?
+    if ! hyprctl monitors -j 2>/dev/null | jq -e --arg i "$INTERNAL" 'any(.[]; .name==$i)' >/dev/null 2>&1; then
+        hyprctl keyword monitor "$INTERNAL, 3024x1890@120, 0x0, 2.0" >/dev/null 2>&1
+    fi
+}
+
+SIG="${HYPRLAND_INSTANCE_SIGNATURE:-}"
+SOCK="$XDG_RUNTIME_DIR/hypr/$SIG/.socket2.sock"
+[ -S "$SOCK" ] || { echo "monitor-hotplug-guard: sin socket2"; exit 0; }
+
+socat -u "UNIX-CONNECT:$SOCK" - 2>/dev/null | while IFS= read -r line; do
+    case "$line" in
+        monitorremoved*)
+            ensure_internal      # recuperar la pantalla si el externo se fue
+            restart_waybar
+            ;;
+        monitoradded*)           # incluye monitoraddedv2
+            restart_waybar
+            ;;
+    esac
+done

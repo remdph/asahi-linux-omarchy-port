@@ -68,5 +68,12 @@ EOF
     ;;
 esac
 
+# Recrear el output del externo = simular desconecta/reconecta: al pasar de espejo a
+# extender, Hyprland NO re-anuncia el wl_output del externo (sí lo hace al reconectar el
+# cable). Con disable + reload se recrea; el guardián de hotplug detecta el monitoradded
+# y refresca waybar solo — igual que un re-enchufe físico. (Sin reinicio manual de waybar.)
+hyprctl keyword monitor "$EXT, disable" >/dev/null 2>&1
+sleep 0.7
 hyprctl reload >/dev/null 2>&1
+
 notify-send -u low "󰍹 Pantallas" "Modo aplicado: ${CHOICE#*  }"
