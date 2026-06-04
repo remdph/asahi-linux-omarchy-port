@@ -273,7 +273,42 @@ the RPM is untouched.
 
 ---
 
-## 7. Rollback & cleanup
+## 7. Converting the config for a newer Hyprland (don't reuse the old one blindly)
+
+A config that works on 0.51 will throw errors on 0.55 — config options get removed/renamed every
+few releases. **Don't point the new session at your existing config; make a converted copy** and
+leave the original untouched (it still serves the older sessions).
+
+**Validate without launching anything:** the binary has a dedicated flag —
+```bash
+~/.local/hyprland-0.55/bin/Hyprland --verify-config --config ~/.config/hypr-055/hyprland.conf
+# prints "config ok" or every error with file:line — no window, no apps, no DRM needed.
+```
+Iterate: run it, fix the reported line, repeat until `config ok`. This is far safer than booting
+the session to discover breakage.
+
+**Layout used here:** a self‑contained `~/.config/hypr-055/` whose `hyprland.conf` *shares* the
+compatible pieces (Omarchy defaults, theme, `monitors.conf`, `input.conf`) with the original and
+only keeps **converted copies** of the files that break. The session launcher points at it:
+`Hyprland --config ~/.config/hypr-055/hyprland.conf`.
+
+**Breaking changes that actually bit this config (0.51 → 0.55), found via `--verify-config`:**
+
+| Old (0.51) | New (0.53+/0.55) | Where |
+|---|---|---|
+| `windowrulev2 = float, class:^(x)$` | `windowrule = float on, match:class ^(x)$` | 0.53 windowrule overhaul: keyword unified to `windowrule`, matchers become `match:…`, and **toggles like `float`/`center` now require a value** (`on`) |
+| `bind … , scroller:movewindow, left` | `bind … , movewindow, l` | scroller plugin dispatchers don't exist without the plugin; map to dwindle's `movewindow` |
+| `general { layout = scroller }` + `plugin { scroller {…} }` | `general { layout = dwindle }` (drop the plugin block) | no scroller plugin on 0.55 yet |
+| (n/a on 0.51) | `render { non_shader_cm = 1 }` | set statically here — it's 0.52+‑only, so it can't live in the shared config (would error on 0.51) |
+
+Other documented 0.52→0.55 breakers to grep your config for (none were present here): `dwindle:pseudotile`,
+`decoration:shadow:ignore_window`, `render:cm_fs_passthrough`, `misc:vfr`→`debug:vfr` (0.55);
+`togglesplit`/`swapsplit` **dispatchers** removed — use `layoutmsg togglesplit` (0.54);
+windowrule syntax overhaul + `misc:on_focus_under_fullscreen` (0.53).
+
+---
+
+## 8. Rollback & cleanup
 
 - **Rollback:** just choose a different session at login. Nothing in `/usr` (except the small
   `.desktop` files) was modified; the COPR Hyprland still runs from `/usr/bin`.

@@ -17,6 +17,10 @@ RPM untouched as rollback. Three versions coexist, chosen at the `plasma-login-m
 - **Hyprland 0.55 (local)** = `~/.local/hyprland-0.55` — full stack built (hyprutils 0.13.1,
   hyprlang 0.6.8, hyprgraphics 0.5.1, hyprcursor 0.1.13, aquamarine 0.12.0, hyprwire 0.3.1, lua
   5.5.0) via `~/.local/src/build-hypr-055.sh`. **Bootable but scroller-less** (layout dwindle).
+  Uses a **dedicated converted config** `~/.config/hypr-055/` (launcher passes `--config`), NOT
+  the shared `~/.config/hypr` (that errors on 0.55). Converted: windowrulev2→windowrule+match:
+  (float/center need `on`), scroller:movewindow→movewindow l/r, no plugin{scroller} block,
+  static render:non_shader_cm=1. Validated with `Hyprland --verify-config` → "config ok".
 
 Session wiring (shared config, one guard): `~/.local/bin/hypr-session-tweaks` (run from
 autostart.conf) branches on `hyprctl version` to load the right scroller `.so` + set
