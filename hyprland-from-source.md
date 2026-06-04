@@ -246,13 +246,19 @@ use‑after‑free patches, see `hyprscroller-crashes.patch`):
 Three pieces let multiple Hyprland versions coexist and be chosen at the login screen.
 
 **a) A launcher per prefix** — prepends the prefix `bin/` to `PATH` so the session's
-`hyprctl`/scanners match the compositor (libs come via RPATH, so no `LD_LIBRARY_PATH`):
+`hyprctl`/scanners match the compositor (libs come via RPATH, so no `LD_LIBRARY_PATH`). On **0.55**
+launch through **`start-hyprland`** (the watchdog that restarts the compositor on crash) — calling
+the `Hyprland` binary directly triggers a *"started without start-hyprland"* warning. Args after
+`--` are forwarded to Hyprland:
 
 ```bash
 # ~/.local/hyprland-0.55/start-session
 #!/bin/bash
 export PATH="$HOME/.local/hyprland-0.55/bin:$PATH"
-exec "$HOME/.local/hyprland-0.55/bin/Hyprland" "$@"
+exec "$HOME/.local/hyprland-0.55/bin/start-hyprland" --no-nixgl \
+     --path "$HOME/.local/hyprland-0.55/bin/Hyprland" \
+     -- --config "$HOME/.config/hypr-055/hyprland.conf" "$@"
+# (0.52 has no start-hyprland; there it's just: exec .../bin/Hyprland --config … "$@")
 ```
 
 **b) A version guard** run from `autostart.conf` (`exec-once = hypr-session-tweaks`) that loads

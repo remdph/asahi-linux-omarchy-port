@@ -23,7 +23,7 @@ v=$((major*100 + minor))   # 0.51->51, 0.52->52, 0.55->55, 1.0->100
 
 if [ "$v" -ge 55 ]; then
     hyprctl keyword render:cm_enabled 0 >/dev/null 2>&1   # green-fullscreen fix (AGX)
-    hyprctl keyword general:layout dwindle >/dev/null 2>&1
+    # layout = scrolling (native in 0.55) is set statically in the 0.55 config; don't force it here
 elif [ "$v" -ge 52 ]; then
     hyprctl keyword render:cm_enabled 0 >/dev/null 2>&1   # green-fullscreen fix (AGX)
     so="$SO_DIR/hyprscroller-052.so"; [ -f "$so" ] || so="$SO_DIR/hyprscroller.so"
