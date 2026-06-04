@@ -288,3 +288,38 @@ aquamarine 0.12.0 · hyprwire 0.3.1 · lua 5.5.0 · GCC 16.1.1 · Fedora Asahi R
 ## Status
 0.52 and 0.55.2 both build, install isolated, and boot as separate sessions. **Pending for
 0.55:** build the official `hyprscrolling` plugin and port the scroller binds/layout to it.
+
+---
+
+## Appendix — the iterative discovery (what actually failed, in order)
+
+`build-hypr-055.sh` already has every fix baked in, so a fresh run is smooth. But the **first**
+time, the 0.55 build failed repeatedly — each failure revealing the next missing piece. This is
+the real sequence, so you recognize each error if you hit it on a different distro/version:
+
+1. **Stack libs build fine**, then **aquamarine fails linking its test binaries** (`simpleWindow`,
+   `attachments`) with `undefined reference to Hyprutils::CLI::CLoggerConnection…` — they pulled
+   the *old system* hyprutils. → guard the tests behind `if(AQ_TESTS)` (gotcha **b**).
+2. aquamarine's library builds. **Hyprland configure stops:** `find_package(glslang)` —
+   *"Could not find a package configuration file… glslang"*. → `dnf install glslang-devel`.
+3. **Configure stops:** `pkg_check_modules … muparser` not found. → `dnf install muParser-devel`.
+4. **Configure stops:** `hyprutils;hyprwire;re2` — *"hyprwire not found"* (new in 0.55, needed by
+   `hyprctl`). It isn't packaged → **build it from source** into the prefix.
+5. **hyprwire configure stops:** `pugixml` not found (its scanner parses XML). →
+   `dnf install pugixml-devel`. hyprwire then builds.
+6. **Configure stops:** *"None of the required 'lua55;lua5.5;…' found"* — 0.55 hard‑requires
+   **Lua 5.5**, Fedora has 5.4. → build Lua 5.5 static + write `lua5.5.pc` (gotcha **d**).
+7. Hyprland finally **configures and compiles**. The binary runs… but `ldd` shows a **second
+   `libhyprutils.so.9`** alongside the prefix `.so.12` — `aquamarine`/`hyprgraphics` had linked
+   the old system one (gotcha **c**). → rebuild those two with the `:FILEPATH` override.
+8. `ldd` is clean except `liblua-5.4.so` (dragged in by `libinput`), and `nm -D` shows the static
+   `lua_*` symbols **exported** → relink Hyprland with `--exclude-libs,liblua.a` (gotcha **e**).
+
+> The pattern is always the same: **`cmake` configure aborts on a missing `pkg_check_modules` /
+> `find_package` → read which module → if Fedora packages it, `dnf install <pkg>-devel`; if it's a
+> hyprwm lib, build it into the prefix → re-run.** The `dnf repoquery --whatprovides 'pkgconfig(<m>)'`
+> trick maps a missing pkg-config module to its `-devel` package name.
+
+> A non‑obvious operational gotcha: **`pkexec` must keep a live parent process.** Backgrounding it
+> with `& disown` makes polkit refuse with *"Refusing to render service to dead parents"* and the
+> install silently never happens — run it in the foreground (or a job that stays attached).
